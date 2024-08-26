@@ -100,7 +100,7 @@ const SwapForm = () => {
                     </p>
                 ) : (fromCurrency && toCurrency) ? (
                     <p>
-                        Please provide an amount to be exchanged.
+                        Please provide the amount to be exchanged.
                     </p>
                 ) : (
                     <p>
