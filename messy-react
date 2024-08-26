@@ -1,0 +1,160 @@
+interface WalletBalance {
+  currency: string;
+  amount: number;
+}
+interface FormattedWalletBalance {
+  currency: string;
+  amount: number;
+  formatted: string;
+}
+
+
+interface Props extends BoxProps {
+
+}
+
+const WalletPage: React.FC<Props> = (props: Props) => {
+  const { children, ...rest } = props;
+  const balances = useWalletBalances();
+  const prices = usePrices();
+
+  // ORIGINAL:
+
+	/* 
+  
+  const getPriority = (blockchain: any): number => {
+	  switch (blockchain) {
+	    case 'Osmosis':
+	      return 100
+	    case 'Ethereum':
+	      return 50
+	    case 'Arbitrum':
+	      return 30
+	    case 'Zilliqa':
+	      return 20
+	    case 'Neo':
+	      return 20
+	    default:
+	      return -99
+	  } 
+	} 
+    
+  */
+
+  // instead of a switch statement, implement a object lookup for better scalability and performance
+
+  // REFACTORED:
+
+  const getPriority = (blockchain: string): number => {
+      const priorities: { [key: string]: number } = {
+        Osmosis: 100,
+        Ethereum: 50,
+        Arbitrum: 30,
+        Zilliqa: 20,
+        Neo: 20
+      };
+      return priorities[blockchain] || -99;
+    };
+
+
+
+    
+  // ORIGINAL:
+
+  /* 
+  
+  const sortedBalances = useMemo(() => {
+      return balances.filter((balance: WalletBalance) => {
+          const balancePriority = getPriority(balance.blockchain);  * 1) HERE
+          if (lhsPriority > -99) {    * lhsPriority NOT DEFINED ANYWHEERE
+              if (balance.amount <= 0) { * 3) RETURNS ZERO/NEGATIVE BALANCES
+              return true;
+              }
+          }
+          return false
+          }).sort((lhs: WalletBalance, rhs: WalletBalance) => {
+              const leftPriority = getPriority(lhs.blockchain);   * 1) HERE
+          const rightPriority = getPriority(rhs.blockchain);  * 1) HERE
+          if (leftPriority > rightPriority) {
+              return -1;
+          } else if (rightPriority > leftPriority) {
+              return 1;
+          }
+      });
+  }, [balances, prices]);   * 2) PRICES UNNECESSARY
+
+  */
+
+    
+  // 1) getPriority called multiple times, when it could instead be added as a property with a map
+  // 2) prices is not needed as a dependancy
+  // 3) filtering logic is incorrect, excluded positive balances
+  // 4) optimized and improved filtering
+
+  // REFACTORED:
+  
+  const sortedBalances = useMemo(() => {
+    return balances
+      .map((balance: WalletBalance) => ({
+        ...balance,
+        priority: getPriority(balance.blockchain) // 1) only called once
+      }))
+      .filter((balance: WalletBalance & { priority: number }) => balance.amount > 0) // 3) returns positive balances
+      .sort((lhs, rhs) => rhs.priority - lhs.priority);
+  }, [balances]); // 2) only need balances
+
+  
+  // ORIGINAL: 
+  
+  /*
+  
+  const formattedBalances = sortedBalances.map((balance: WalletBalance) => {
+    return {
+    ...balance,
+    formatted: balance.amount.toFixed()   
+    }
+    })
+  
+  const rows = sortedBalances.map((balance: FormattedWalletBalance, index: number) => {
+      const usdValue = prices[balance.currency] * balance.amount;
+      return (
+      <WalletRow 
+          className={classes.row}
+          key={index}  * 1) SHOULD BE UNIQUE ID
+          amount={balance.amount}
+          usdValue={usdValue}
+          formattedAmount={balance.formatted}
+      />
+      )
+  })
+
+  */
+
+  // 1) do not need separate formatting function, consolidate instead to avoid mapping over sortedBalances twice
+  // 2) using index as a key may lead to rendering issues, should use unique ID instead
+  // 3) add dependencies to trigger recalculation on change
+ 
+  // REFACTORED:
+
+  const rows = useMemo(() => {
+    return sortedBalances.map((balance: WalletBalance, index: number) => {
+      const formattedAmount = balance.amount.toFixed(); // 1) format here instead 
+      const usdValue = prices[balance.currency] * balance.amount;
+      return (
+        <WalletRow 
+          className={classes.row}
+          key={balance.currency} // 2) unique ID
+          amount={balance.amount}
+          usdValue={usdValue}
+          formattedAmount={formattedAmount}
+        />
+      );
+    });
+  }, [sortedBalances, prices]); // 3) here
+
+  return (
+    <div {...rest}>
+      {rows}
+    </div>
+  )
+}
